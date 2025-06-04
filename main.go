@@ -16,6 +16,7 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbQueries      *database.Queries
+	platform       string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -23,6 +24,12 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 		cfg.fileserverHits.Add(1)
 		next.ServeHTTP(w, r)
 	})
+}
+
+func checkHealth(w http.ResponseWriter, req *http.Request) {
+	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }
 
 func (cfg *apiConfig) showMetrics(w http.ResponseWriter, req *http.Request) {
@@ -40,15 +47,14 @@ func (cfg *apiConfig) showMetrics(w http.ResponseWriter, req *http.Request) {
 }
 
 func (cfg *apiConfig) resetMetrics(w http.ResponseWriter, req *http.Request) {
+	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	if cfg.platform != "dev" {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
 	cfg.fileserverHits.Store(0)
-	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	cfg.dbQueries.DeleteAllUsers(req.Context())
 	w.WriteHeader(http.StatusOK)
-}
-
-func checkHealth(w http.ResponseWriter, req *http.Request) {
-	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
 }
 
 func main() {
@@ -68,13 +74,16 @@ func main() {
 		Handler: mux,
 		Addr:    ":" + port,
 	}
-	cfg := &apiConfig{dbQueries: database.New(db)}
+	cfg := &apiConfig{dbQueries: database.New(db), platform: os.Getenv("PLATFORM")}
 
 	mux.Handle("/app/", cfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
 	mux.HandleFunc("GET /admin/metrics", cfg.showMetrics)
 	mux.HandleFunc("POST /admin/reset", cfg.resetMetrics)
+
 	mux.HandleFunc("GET /api/healthz", checkHealth)
 	mux.HandleFunc("POST /api/validate_chirp", validateChirp)
+
+	mux.HandleFunc("POST /api/users", cfg.addUser)
 
 	server.ListenAndServe()
 }
