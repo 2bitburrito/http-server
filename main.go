@@ -81,9 +81,11 @@ func main() {
 	mux.HandleFunc("POST /admin/reset", cfg.resetMetrics)
 
 	mux.HandleFunc("GET /api/healthz", checkHealth)
-	mux.HandleFunc("POST /api/validate_chirp", validateChirp)
 
 	mux.HandleFunc("POST /api/users", cfg.addUser)
+	mux.HandleFunc("POST /api/chirps", cfg.postChirp)
+	mux.HandleFunc("GET /api/chirps", cfg.getAllChirps)
+	mux.HandleFunc("GET /api/chirps/{chirp-id}", cfg.getSingleChirp)
 
 	server.ListenAndServe()
 }
