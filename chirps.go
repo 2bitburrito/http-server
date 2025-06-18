@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"http-server/internal/database"
 	"log"
@@ -88,7 +89,7 @@ func cleanChirp(body string) string {
 func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, req *http.Request) {
 	allChirps, err := cfg.dbQueries.GetAllChirps(req.Context())
 	if err != nil {
-		returnJsonError(w, "error getting all chrips from db"+err.Error(), http.StatusInternalServerError)
+		returnJsonError(w, "error getting all chrips from db: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	json.NewEncoder(w).Encode(allChirps)
@@ -96,12 +97,25 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, req *http.Request) {
 }
 
 func (cfg *apiConfig) getSingleChirp(w http.ResponseWriter, req *http.Request) {
-	var chirpID uuid.UUID
-	chirpID = req.PathValue("chirp-id")
-	chirpUUID := uuid
-	if !ok {
-		returnJsonError(w, "Error type casting to uuid", http.StatusInternalServerError)
+	chirpID := req.PathValue("id")
+	chirpUUID, err := uuid.Parse(chirpID)
+	if err != nil {
+		returnJsonError(w, "Error type casting to uuid: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	cfg.dbQueries.GetSingleChirp(req.Context(), chirpID)
+	chirp, err := cfg.dbQueries.GetSingleChirp(req.Context(), chirpUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			returnJsonError(w, "No Chirp Found: "+err.Error(), http.StatusNotFound)
+			return
+		}
+		returnJsonError(w, "Error getting chirp from db: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := json.NewEncoder(w).Encode(chirp); err != nil {
+		returnJsonError(w, "Error encoding chirp to json: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }

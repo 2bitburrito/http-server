@@ -85,7 +85,7 @@ func main() {
 	mux.HandleFunc("POST /api/users", cfg.addUser)
 	mux.HandleFunc("POST /api/chirps", cfg.postChirp)
 	mux.HandleFunc("GET /api/chirps", cfg.getAllChirps)
-	mux.HandleFunc("GET /api/chirps/{chirp-id}", cfg.getSingleChirp)
+	mux.HandleFunc("GET /api/chirps/{id}", cfg.getSingleChirp)
 
 	server.ListenAndServe()
 }
