@@ -1,7 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"http-server/internal/auth"
+	"http-server/internal/database"
 	"log"
 	"net/http"
 	"time"
@@ -10,8 +13,10 @@ import (
 )
 
 type Request struct {
-	Email string
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
+
 type User struct {
 	ID        uuid.UUID `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -29,7 +34,17 @@ func (cfg *apiConfig) addUser(w http.ResponseWriter, req *http.Request) {
 	}
 	log.Println("Received email:", r.Email)
 
-	dbUser, err := cfg.dbQueries.CreateUser(req.Context(), r.Email)
+	hashedPw, err := auth.HashPassword(r.Password)
+	if err != nil {
+		returnJsonError(w, "ERROR HASHING", 500)
+	}
+	dbUser, err := cfg.dbQueries.CreateUser(req.Context(), database.CreateUserParams{
+		Email: r.Email,
+		HashedPassword: sql.NullString{
+			Valid:  true,
+			String: hashedPw,
+		},
+	})
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(500)
@@ -45,6 +60,7 @@ func (cfg *apiConfig) addUser(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Println("Error marshalling user in addUser")
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	w.WriteHeader(201)
 	w.Write(dat)

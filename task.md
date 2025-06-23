@@ -1,37 +1,26 @@
-# Assignment
+Add a MakeJWT function to your auth package:
+func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error)
 
-- Create an internal/auth package and expose two functions:
-- func HashPassword(password string) (string, error): Hash the password using the bcrypt.GenerateFromPassword function. Bcrypt is a secure hash function that is intended for use with passwords.
-  func CheckPasswordHash(hash, password string) error: Use the bcrypt.CompareHashAndPassword function to compare the password that the user entered in the HTTP request with the password that is stored in the database.
-  I wrote a couple of simple unit tests to ensure the package is working as expected.
+Create and return a JWT using this JWT library, which you can import into your code by running:
 
-Update the POST /api/users endpoint. The body parameters should now require a new password field:
+go get -u github.com/golang-jwt/jwt/v5
 
-```json{
-"password": "04234",
-"email": "<lane@example.com>"
-}
-```
+Create a new token.
+Use jwt.NewWithClaims
+Use jwt.SigningMethodHS256 as the signing method.
+Use jwt.RegisteredClaims as the claims.
+Set the Issuer to "chirpy"
+Set IssuedAt to the current time in UTC
+Set ExpiresAt to the current time plus the expiration time (expiresIn)
+Set the Subject to a stringified version of the user's id
+Use token.SignedString to sign the token with the secret key. Refer to here for an overview of the different signing methods and their respective key types.
+Add a ValidateJWT function to your auth package:
+func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error)
 
-As long as your server uses HTTPS in production, it's safe to send raw passwords in HTTP requests, because the entire request is encrypted.
+Use the jwt.ParseWithClaims function to validate the signature of the JWT and extract the claims into a \*jwt.Token struct. An error will be returned if the token is invalid or has expired.
+If all is well with the token, use the token.Claims interface to get access to the user's id from the claims (which should be stored in the Subject field). Return the id as a uuid.UUID.
 
-Use your internal package's HashPassword function to hash the password before storing it in the database. Do NOT return the hashed password in the response. Again, that would be a security risk.
-
-Add a POST /api/login endpoint. This endpoint should allow a user to login. In a future exercise, this endpoint will be used to give the user a token that they can use to make authenticated requests. For now, let's just make sure password validation is working. It should accept this body:
-{
-"password": "04234",
-"email": "<lane@example.com>"
-}
-
-You'll need a new query to look up a user by their email address (you don't have access to an ID here). Once you have the user, check to see if their password matches the stored hash using your internal package. If either the user lookup or the password comparison errors, just return a 401 Unauthorized response with the message "Incorrect email or password".
-
-If the passwords match, return a 200 OK response and a copy of the user resource (without the password of course):
-
-{
-"id": "f0f87ec2-a8b5-48cc-b66a-a85ce7c7b862",
-"created_at": "2021-07-07T00:00:00Z",
-"updated_at": "2021-07-07T00:00:00Z",
-"email": "<lane@example.com>"
-}
-
+Add some more unit tests to the auth package. Make sure that you can create and validate JWTs, and that expired tokens are rejected and JWTs signed with the wrong secret are rejected.
 Run and submit the CLI tests.
+
+B
