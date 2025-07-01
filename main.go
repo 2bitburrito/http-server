@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"http-server/internal/auth"
 	"http-server/internal/database"
 	"log"
 	"net/http"
@@ -17,6 +19,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbQueries      *database.Queries
 	platform       string
+	tokenSecret    string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -57,6 +60,23 @@ func (cfg *apiConfig) resetMetrics(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (cfg *apiConfig) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token, err := auth.GetBearerToken(r.Header)
+		if err != nil {
+			returnJsonError(w, "error while getting token: "+err.Error(), 401)
+			return
+		}
+		userID, err := auth.ValidateJWT(token, cfg.tokenSecret)
+		if err != nil {
+			returnJsonError(w, "error while authorizing token: "+err.Error(), 401)
+			return
+		}
+		ctx := context.WithValue(r.Context(), "UserID", userID.String())
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 func main() {
 	err := godotenv.Load()
 	if err != nil {
@@ -65,8 +85,11 @@ func main() {
 	dbURL := os.Getenv("DB_URL")
 
 	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Fatal("Couldn't open connection to database")
+	}
 
-	fmt.Println("Starting")
+	fmt.Println("Starting...")
 	const port = "8080"
 
 	mux := http.NewServeMux()
@@ -74,7 +97,11 @@ func main() {
 		Handler: mux,
 		Addr:    ":" + port,
 	}
-	cfg := &apiConfig{dbQueries: database.New(db), platform: os.Getenv("PLATFORM")}
+	cfg := &apiConfig{
+		dbQueries:   database.New(db),
+		platform:    os.Getenv("PLATFORM"),
+		tokenSecret: os.Getenv("TOKEN_SECRET"),
+	}
 
 	mux.Handle("/app/", cfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
 	mux.HandleFunc("GET /admin/metrics", cfg.showMetrics)
@@ -83,9 +110,10 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", checkHealth)
 
 	mux.HandleFunc("POST /api/users", cfg.addUser)
-	mux.HandleFunc("POST /api/chirps", cfg.postChirp)
-	mux.HandleFunc("GET /api/chirps", cfg.getAllChirps)
-	mux.HandleFunc("GET /api/chirps/{id}", cfg.getSingleChirp)
+
+	mux.Handle("POST /api/chirps", cfg.authMiddleware(http.HandlerFunc(cfg.postChirp)))
+	mux.Handle("GET /api/chirps", cfg.authMiddleware(http.HandlerFunc(cfg.getAllChirps)))
+	mux.Handle("GET /api/chirps/{id}", cfg.authMiddleware(http.HandlerFunc(cfg.getSingleChirp)))
 
 	mux.HandleFunc("POST /api/login", cfg.login)
 

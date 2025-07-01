@@ -32,7 +32,6 @@ func (cfg *apiConfig) addUser(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	log.Println("Received email:", r.Email)
 
 	hashedPw, err := auth.HashPassword(r.Password)
 	if err != nil {

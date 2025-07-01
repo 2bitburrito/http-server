@@ -28,12 +28,13 @@ func (cfg *apiConfig) postChirp(w http.ResponseWriter, req *http.Request) {
 	var r request
 	w.Header().Set("Content-Type", "application/json")
 	decoder := json.NewDecoder(req.Body)
-	defer req.Body.Close()
 	err := decoder.Decode(&r)
 	if err != nil {
 		returnJsonError(w, "Error Decoding from json"+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer req.Body.Close()
+
 	length := len(r.Body)
 	if length > 140 {
 		returnJsonError(w, "Chirp is too long", 400)
@@ -41,9 +42,11 @@ func (cfg *apiConfig) postChirp(w http.ResponseWriter, req *http.Request) {
 	}
 
 	cleanBody := cleanChirp(r.Body)
+	userID := req.Context().Value("UserID")
+	uuidID, _ := uuid.Parse(userID.(string))
 	dbChirp, err := cfg.dbQueries.CreateChirp(req.Context(), database.CreateChirpParams{
 		Body:      cleanBody,
-		UserID:    r.UserID,
+		UserID:    uuidID,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	})
