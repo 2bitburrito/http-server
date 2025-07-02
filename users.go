@@ -64,3 +64,46 @@ func (cfg *apiConfig) addUser(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(201)
 	w.Write(dat)
 }
+
+func (cfg *apiConfig) updateUser(w http.ResponseWriter, req *http.Request) {
+	var r Request
+	if err := json.NewDecoder(req.Body).Decode(&r); err != nil {
+		returnJsonError(w, "Error decoding json in update user: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	defer req.Body.Close()
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		returnJsonError(w, "Error Getting Token", 401)
+		return
+	}
+	userID, err := auth.ValidateJWT(token, cfg.tokenSecret)
+	if err != nil {
+		returnJsonError(w, "Couldnt' validate JWT", 401)
+	}
+	pw, err := auth.HashPassword(r.Password)
+	if err != nil {
+		returnJsonError(w, "Error hashing password", 500)
+		return
+	}
+	user, err := cfg.dbQueries.UpdateUser(req.Context(), database.UpdateUserParams{
+		ID: userID,
+		HashedPassword: sql.NullString{
+			Valid:  true,
+			String: pw,
+		},
+		Email: r.Email,
+	})
+	if err != nil {
+		returnJsonError(w, "Error setting new email/password in db: "+err.Error(), 500)
+		return
+	}
+	rtnUser := User{
+		ID:    user.ID,
+		Email: user.Email,
+	}
+	if err := json.NewEncoder(w).Encode(rtnUser); err != nil {
+		returnJsonError(w, "Couldn't set json response: "+err.Error(), 500)
+	}
+}

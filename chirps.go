@@ -122,3 +122,40 @@ func (cfg *apiConfig) getSingleChirp(w http.ResponseWriter, req *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 }
+
+func (cfg *apiConfig) deleteChirp(w http.ResponseWriter, req *http.Request) {
+	chirpId := req.PathValue("id")
+	if len(chirpId) == 0 {
+		returnJsonError(w, "No chirp Id present in request header", 401)
+		return
+	}
+	chirpUUID, err := uuid.Parse(chirpId)
+	if err != nil {
+		returnJsonError(w, "Couldn't parse chirp ID: "+err.Error(), 500)
+		return
+	}
+
+	chirpRow, err := cfg.dbQueries.GetSingleChirp(req.Context(), chirpUUID)
+	if err != nil {
+		returnJsonError(w, "Couldn't get chirp from db: "+err.Error(), 500)
+		return
+	}
+	userID := req.Context().Value("UserID")
+
+	userUUID, err := uuid.Parse(userID.(string))
+	if err != nil {
+		returnJsonError(w, "Couldn't cast and parse UserID from string: "+err.Error(), 500)
+		return
+	}
+
+	if chirpRow.UserID != userUUID {
+		returnJsonError(w, "Not Authorized", 403)
+		return
+	}
+	err = cfg.dbQueries.DeleteChirp(req.Context(), chirpUUID)
+	if err != nil {
+		returnJsonError(w, "Couldn't get chirp from db: "+err.Error(), 500)
+		return
+	}
+	w.WriteHeader(204)
+}

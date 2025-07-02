@@ -110,10 +110,12 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", checkHealth)
 
 	mux.HandleFunc("POST /api/users", cfg.addUser)
+	mux.HandleFunc("PUT /api/users", cfg.updateUser)
 
 	mux.Handle("POST /api/chirps", cfg.authMiddleware(http.HandlerFunc(cfg.postChirp)))
 	mux.Handle("GET /api/chirps", cfg.authMiddleware(http.HandlerFunc(cfg.getAllChirps)))
-	mux.Handle("GET /api/chirps/{id}", cfg.authMiddleware(http.HandlerFunc(cfg.getSingleChirp)))
+	mux.HandleFunc("GET /api/chirps/{id}", http.HandlerFunc(cfg.getSingleChirp))
+	mux.Handle("DELETE /api/chirps/{id}", cfg.authMiddleware(http.HandlerFunc(cfg.deleteChirp)))
 
 	mux.HandleFunc("POST /api/login", cfg.login)
 	mux.HandleFunc("POST /api/refresh", cfg.refreshToken)

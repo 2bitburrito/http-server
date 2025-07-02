@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"http-server/internal/auth"
 	"http-server/internal/database"
 	"net/http"
@@ -91,15 +90,12 @@ func (cfg *apiConfig) refreshToken(w http.ResponseWriter, req *http.Request) {
 		returnJsonError(w, "error while getting token from Headers: "+err.Error(), 401)
 		return
 	}
-	fmt.Printf("received token %s\n", refreshToken)
 
 	tokenRow, err := cfg.dbQueries.GetRefreshToken(req.Context(), refreshToken)
 	if err != nil {
 		returnJsonError(w, "error while retreiving token row: "+err.Error(), 401)
 		return
 	}
-
-	fmt.Printf("stored token %+v\n", tokenRow)
 
 	if tokenRow.ExpiresAt.Before(time.Now()) ||
 		tokenRow.RevokedAt.Valid {
