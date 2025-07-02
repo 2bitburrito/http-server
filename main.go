@@ -116,6 +116,8 @@ func main() {
 	mux.Handle("GET /api/chirps/{id}", cfg.authMiddleware(http.HandlerFunc(cfg.getSingleChirp)))
 
 	mux.HandleFunc("POST /api/login", cfg.login)
+	mux.HandleFunc("POST /api/refresh", cfg.refreshToken)
+	mux.HandleFunc("POST /api/revoke", cfg.revokeToken)
 
 	server.ListenAndServe()
 }

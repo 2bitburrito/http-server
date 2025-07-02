@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -21,5 +22,26 @@ func TestCreateAndValidateJWT(t *testing.T) {
 	}
 	if userID != returnedID {
 		t.Errorf("User ID's do not match after JWT creation")
+	}
+}
+
+func TestMakeRefreshToken(t *testing.T) {
+	tokens := make([]string, 5)
+
+	for i := range len(tokens) {
+		token, err := MakeRefreshToken()
+		if err != nil {
+			t.Fatalf("failed to make token: %s", err)
+		}
+		tokens[i] = token
+	}
+
+	for i, token := range tokens {
+		for j := i + 1; j < len(tokens); j++ {
+			if token == tokens[j] {
+				fmt.Println(tokens)
+				t.Fatalf("Found matching tokens")
+			}
+		}
 	}
 }

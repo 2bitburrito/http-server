@@ -15,7 +15,7 @@ func returnJsonError(w http.ResponseWriter, msg string, code int) {
 		log.Printf("Error marshalling JSON: %s\n", err)
 		return
 	}
-	log.Printf(msg)
+	log.Println(msg)
 	w.WriteHeader(code)
 	w.Write(dat)
 }
