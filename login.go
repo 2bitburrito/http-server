@@ -20,6 +20,7 @@ type LoginReturn struct {
 	Email        string    `json:"email"`
 	Token        string    `json:"token"`
 	RefreshToken string    `json:"refresh_token"`
+	IsChirpyRed  bool      `json:"is_chirpy_red"`
 }
 type RefreshTokenReturn struct {
 	Token string `json:"token"`
@@ -76,6 +77,7 @@ func (cfg *apiConfig) login(w http.ResponseWriter, req *http.Request) {
 		Email:        user.Email,
 		Token:        jwt,
 		RefreshToken: refreshToken,
+		IsChirpyRed:  user.IsChirpyRed.Bool,
 	}
 
 	if err := json.NewEncoder(w).Encode(rtn); err != nil {

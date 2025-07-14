@@ -18,7 +18,7 @@ INSERT INTO users ( created_at, updated_at, email, hashed_password)
 VALUES (
    NOW(), NOW(), $1, $2
 )
-RETURNING id, email, updated_at, created_at
+RETURNING id, email, updated_at, created_at, is_chirpy_red
 `
 
 type CreateUserParams struct {
@@ -27,10 +27,11 @@ type CreateUserParams struct {
 }
 
 type CreateUserRow struct {
-	ID        uuid.UUID `json:"id"`
-	Email     string    `json:"email"`
-	UpdatedAt time.Time `json:"updated_at"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          uuid.UUID    `json:"id"`
+	Email       string       `json:"email"`
+	UpdatedAt   time.Time    `json:"updated_at"`
+	CreatedAt   time.Time    `json:"created_at"`
+	IsChirpyRed sql.NullBool `json:"is_chirpy_red"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
@@ -41,6 +42,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		&i.Email,
 		&i.UpdatedAt,
 		&i.CreatedAt,
+		&i.IsChirpyRed,
 	)
 	return i, err
 }
@@ -55,7 +57,7 @@ func (q *Queries) DeleteAllUsers(ctx context.Context) error {
 }
 
 const getAllUsers = `-- name: GetAllUsers :many
-SELECT id, created_at, updated_at, email, hashed_password FROM users
+SELECT id, created_at, updated_at, email, hashed_password, is_chirpy_red FROM users
 ORDER BY created_at ASC
 `
 
@@ -74,6 +76,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 			&i.UpdatedAt,
 			&i.Email,
 			&i.HashedPassword,
+			&i.IsChirpyRed,
 		); err != nil {
 			return nil, err
 		}
@@ -89,7 +92,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 }
 
 const getUserByEmaill = `-- name: GetUserByEmaill :one
-SELECT id, created_at, updated_at, email, hashed_password FROM users
+SELECT id, created_at, updated_at, email, hashed_password, is_chirpy_red FROM users
 WHERE email = $1
 `
 
@@ -102,6 +105,7 @@ func (q *Queries) GetUserByEmaill(ctx context.Context, email string) (User, erro
 		&i.UpdatedAt,
 		&i.Email,
 		&i.HashedPassword,
+		&i.IsChirpyRed,
 	)
 	return i, err
 }
@@ -111,7 +115,7 @@ UPDATE users
 SET hashed_password = $2,
     email = $3
 WHERE id = $1
-RETURNING id, created_at, updated_at, email, hashed_password
+RETURNING id, created_at, updated_at, email, hashed_password, is_chirpy_red
 `
 
 type UpdateUserParams struct {
@@ -129,6 +133,18 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.Email,
 		&i.HashedPassword,
+		&i.IsChirpyRed,
 	)
 	return i, err
+}
+
+const upgradeUserToRed = `-- name: UpgradeUserToRed :exec
+UPDATE users
+SET is_chirpy_red = true
+WHERE id = $1
+`
+
+func (q *Queries) UpgradeUserToRed(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, upgradeUserToRed, id)
+	return err
 }

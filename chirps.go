@@ -3,9 +3,11 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"http-server/internal/database"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -90,13 +92,31 @@ func cleanChirp(body string) string {
 }
 
 func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, req *http.Request) {
-	allChirps, err := cfg.dbQueries.GetAllChirps(req.Context())
-	if err != nil {
-		returnJsonError(w, "error getting all chrips from db: "+err.Error(), http.StatusInternalServerError)
+	queryParams := req.URL.Query()
+	authorId := queryParams.Get("author_id")
+	sortDir := queryParams.Get("sort")
+
+	if authorId == "" {
+		allChirps, err := cfg.dbQueries.GetAllChirps(req.Context())
+		if err != nil {
+			returnJsonError(w, "error getting all chrips from db: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if sortDir == "desc" {
+			sort.Slice(allChirps, func(a, b int) bool { return a > b })
+		}
+		json.NewEncoder(w).Encode(allChirps)
 		return
 	}
-	json.NewEncoder(w).Encode(allChirps)
-	w.WriteHeader(200)
+	allIdChirps, err := cfg.dbQueries.GetAllChirpsById(req.Context(), uuid.MustParse(authorId))
+	if err != nil {
+		returnJsonError(w, fmt.Sprintf("error getting all chrips from db for %s: %s", authorId, err.Error()), http.StatusInternalServerError)
+		return
+	}
+	if sortDir == "desc" {
+		sort.Slice(allIdChirps, func(a, b int) bool { return a > b })
+	}
+	json.NewEncoder(w).Encode(allIdChirps)
 }
 
 func (cfg *apiConfig) getSingleChirp(w http.ResponseWriter, req *http.Request) {

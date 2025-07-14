@@ -18,10 +18,11 @@ type Request struct {
 }
 
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
+	ID          uuid.UUID `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Email       string    `json:"email"`
+	IsChirpyRed bool      `json:"is_chirpy_red"`
 }
 
 func (cfg *apiConfig) addUser(w http.ResponseWriter, req *http.Request) {
@@ -100,8 +101,9 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	rtnUser := User{
-		ID:    user.ID,
-		Email: user.Email,
+		ID:          user.ID,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed.Bool,
 	}
 	if err := json.NewEncoder(w).Encode(rtnUser); err != nil {
 		returnJsonError(w, "Couldn't set json response: "+err.Error(), 500)
